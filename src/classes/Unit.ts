@@ -2,7 +2,7 @@ import type GameScene from '../scenes/GameScene';
 
 export class Unit extends Phaser.GameObjects.Container {
   private selectionCircle: Phaser.GameObjects.Graphics;
-  private sprite: Phaser.GameObjects.Sprite;
+  protected sprite: Phaser.GameObjects.Sprite;
   private path: Phaser.Math.Vector2[] = [];
   private currentPathIndex: number = 0;
   private speed: number = 2; // Pixels per frame, roughly

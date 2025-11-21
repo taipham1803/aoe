@@ -62,6 +62,7 @@ export class Building extends Phaser.GameObjects.Container {
     this.add(this.sprite);
 
     scene.add.existing(this);
+    this.setDepth(this.y); // Ensure building renders in front of tiles behind it
     
     // Interaction
     this.setSize(64, 64);

@@ -44,6 +44,11 @@ export default class GameScene extends Phaser.Scene {
   private buildButton!: Phaser.GameObjects.Text;
   private buildingButtons: Phaser.GameObjects.Text[] = [];
 
+  // Camera
+  private cameraScrollSpeed: number = 15;
+  private scrollEdge: number = 50;
+  private mousePos: { x: number, y: number } = { x: 0, y: 0 };
+
   constructor() {
     super('GameScene');
   }
@@ -233,132 +238,13 @@ export default class GameScene extends Phaser.Scene {
     graphics.fillCircle(16, 12, 5);
     graphics.generateTexture('stone', 32, 32);
 
-    // Town Center (Asian style with roof)
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.3);
-    graphics.fillEllipse(24, 52, 50, 12);
-    // Base
-    graphics.fillStyle(0x8B4513);
-    graphics.fillRect(0, 24, 48, 24);
-    // Roof
-    graphics.fillStyle(0x4169E1);
-    graphics.beginPath();
-    graphics.moveTo(24, 8);
-    graphics.lineTo(52, 20);
-    graphics.lineTo(48, 26);
-    graphics.lineTo(0, 26);
-    graphics.lineTo(-4, 20);
-    graphics.closePath();
-    graphics.fillPath();
-    // Roof details
-    graphics.fillStyle(0x5a8fd4);
-    graphics.fillRect(0, 24, 48, 2);
-    // Door
-    graphics.fillStyle(0x654321);
-    graphics.fillRect(18, 32, 12, 16);
-    graphics.generateTexture('townCenter', 48, 48);
-
-    // House (Small Asian style)
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.3);
-    graphics.fillEllipse(16, 36, 34, 8);
-    // Base
-    graphics.fillStyle(0x8B4513);
-    graphics.fillRect(0, 16, 32, 16);
-    // Roof
-    graphics.fillStyle(0x654321);
-    graphics.beginPath();
-    graphics.moveTo(16, 4);
-    graphics.lineTo(36, 14);
-    graphics.lineTo(32, 18);
-    graphics.lineTo(0, 18);
-    graphics.lineTo(-4, 14);
-    graphics.closePath();
-    graphics.fillPath();
-    // Door
-    graphics.fillStyle(0x4a3621);
-    graphics.fillRect(12, 20, 8, 12);
-    graphics.generateTexture('house', 32, 32);
-
-    // Barracks (Military building)
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.3);
-    graphics.fillEllipse(20, 44, 42, 10);
-    // Base
-    graphics.fillStyle(0x696969);
-    graphics.fillRect(0, 16, 40, 24);
-    // Roof
-    graphics.fillStyle(0x8B0000);
-    graphics.beginPath();
-    graphics.moveTo(20, 4);
-    graphics.lineTo(44, 14);
-    graphics.lineTo(40, 18);
-    graphics.lineTo(0, 18);
-    graphics.lineTo(-4, 14);
-    graphics.closePath();
-    graphics.fillPath();
-    // Door
-    graphics.fillStyle(0x4a3621);
-    graphics.fillRect(15, 24, 10, 16);
-    graphics.generateTexture('barracks', 40, 40);
-
-    // Market
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.3);
-    graphics.fillEllipse(20, 44, 42, 10);
-    // Base
-    graphics.fillStyle(0xDAA520);
-    graphics.fillRect(0, 16, 40, 24);
-    // Roof
-    graphics.fillStyle(0xFF8C00);
-    graphics.beginPath();
-    graphics.moveTo(20, 4);
-    graphics.lineTo(44, 14);
-    graphics.lineTo(40, 18);
-    graphics.lineTo(0, 18);
-    graphics.lineTo(-4, 14);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('market', 40, 40);
-
-    // Mill
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.3);
-    graphics.fillEllipse(16, 36, 34, 8);
-    // Base
-    graphics.fillStyle(0xA0522D);
-    graphics.fillRect(4, 16, 24, 20);
-    // Roof (cone)
-    graphics.fillStyle(0x8B4513);
-    graphics.beginPath();
-    graphics.moveTo(16, 4);
-    graphics.lineTo(32, 16);
-    graphics.lineTo(0, 16);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('mill', 32, 32);
-
-    // Farm (field with crops)
-    graphics.clear();
-    // Shadow
-    graphics.fillStyle(0x000000, 0.2);
-    graphics.fillEllipse(16, 30, 30, 6);
-    // Field
-    graphics.fillStyle(0x8B7355);
-    graphics.fillRect(0, 8, 32, 20);
-    // Crops (green dots)
-    graphics.fillStyle(0x228B22);
-    for (let i = 0; i < 12; i++) {
-      const x = 4 + (i % 4) * 8;
-      const y = 10 + Math.floor(i / 4) * 6;
-      graphics.fillCircle(x, y, 2);
-    }
-    graphics.generateTexture('farm', 32, 32);
+    // Load Building Assets
+    this.load.image('town_center', 'town_center.png');
+    this.load.image('house', 'house_clean.png');
+    this.load.image('barracks', 'barracks.png');
+    this.load.image('market', 'market.png');
+    this.load.image('mill', 'mill.png');
+    this.load.image('farm', 'farm.png');
 
     // Sheep (white fluffy)
     graphics.clear();
@@ -449,8 +335,18 @@ export default class GameScene extends Phaser.Scene {
     (this as any).selectionHPDisplay = selectionHPDisplay;
     (this as any).actionButtonsContainer = actionButtonsContainer;
 
+    // Cleanup on shutdown
+    // this.events.on('shutdown', this.shutdown, this);
+    // this.events.on('destroy', this.shutdown, this);
+
+    // Global mouse tracking for edge scrolling
+    window.addEventListener('mousemove', (e) => {
+        this.mousePos.x = e.clientX;
+        this.mousePos.y = e.clientY;
+    });
+
     // Initialize Map System (50x50 Map)
-    const mapSize = 50;
+    const mapSize = 150;
     this.mapSystem = new MapSystem(this, mapSize, mapSize, 64, 32);
     this.mapSystem.createIsoMap();
 
@@ -487,12 +383,12 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Create Town Center (Centered)
-    const tcX = 25;
-    const tcY = 25;
+    const tcX = Math.floor(mapSize / 2);
+    const tcY = Math.floor(mapSize / 2);
     const tcPos = this.mapSystem.cartesianToIso(tcX, tcY);
     this.townCenterPos = new Phaser.Math.Vector2(tcPos.isoX, tcPos.isoY);
     
-    const tc = new Building(this, tcPos.isoX, tcPos.isoY, 'townCenter', 'town_center');
+    const tc = new Building(this, tcPos.isoX, tcPos.isoY, 'town_center', 'town_center');
     tc.construct(100);
     this.buildings.push(tc);
 
@@ -502,6 +398,9 @@ export default class GameScene extends Phaser.Scene {
     this.spawnVillager(tcX, tcY + 2);
     this.spawnVillager(tcX - 1, tcY - 1);
     this.spawnVillager(tcX + 1, tcY - 1);
+
+    // Populate Map with Buildings
+    this.decorateMap(tcX, tcY, mapSize);
 
     // Generate Resources with variety
     // Forest clusters (regular trees)
@@ -544,12 +443,13 @@ export default class GameScene extends Phaser.Scene {
 
     // Setup camera
     this.cameras.main.centerOn(tcPos.isoX, tcPos.isoY);
+    // this.cameras.main.centerOn(0, 0);
     this.cameras.main.setZoom(1);
 
     // Initialize Minimap
     const mapWidth = this.mapSystem.getWidth() * 64; // tile width
     const mapHeight = this.mapSystem.getHeight() * 32; // tile height
-    this.minimap = new Minimap(this, mapWidth, mapHeight);
+    // this.minimap = new Minimap(this, mapWidth, mapHeight);
 
     // Selection Graphics
     this.selectionGraphics = this.add.graphics();
@@ -587,7 +487,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: any, _deltaX: number, deltaY: number, _deltaZ: number) => {
       const zoom = this.cameras.main.zoom - deltaY * 0.001;
-      this.cameras.main.setZoom(Phaser.Math.Clamp(zoom, 0.5, 2));
+      this.cameras.main.setZoom(Phaser.Math.Clamp(zoom, 0.1, 2)); // Allow zooming out to 0.1
     });
 
     // UI
@@ -683,14 +583,35 @@ export default class GameScene extends Phaser.Scene {
     this.buildingButtons = [this.buildButton, barracksButton, marketButton, millButton, farmButton];
   }
 
+
+
   update(_time: number, delta: number) {
     this.units.forEach(unit => unit.update());
-    this.villagers.forEach(villager => villager.update(delta));
-    this.animals.forEach(animal => animal.update(delta));
     
-    if (this.minimap) {
-      this.minimap.update();
+    // Edge Scrolling
+    // Use global mouse position to handle scrolling even when over UI
+    if (!this.isDragging) {
+        const speed = this.cameraScrollSpeed * (delta / 16);
+        const zoom = this.cameras.main.zoom;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        if (this.mousePos.x < this.scrollEdge) {
+            this.cameras.main.scrollX -= speed / zoom;
+        } else if (this.mousePos.x > width - this.scrollEdge) {
+            this.cameras.main.scrollX += speed / zoom;
+        }
+
+        if (this.mousePos.y < this.scrollEdge) {
+            this.cameras.main.scrollY -= speed / zoom;
+        } else if (this.mousePos.y > height - this.scrollEdge) {
+            this.cameras.main.scrollY += speed / zoom;
+        }
     }
+
+    // if (this.minimap) {
+    //   this.minimap.update();
+    // }
     
     // Update building menu visibility
     const hasVillagerSelected = this.selectedUnits.some(unit => unit instanceof Villager);
@@ -747,6 +668,65 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  private decorateMap(centerX: number, centerY: number, mapSize: number) {
+    // 1. Starting Village (Near TC)
+    this.spawnBuilding(centerX - 4, centerY + 4, 'house', 'house');
+    this.spawnBuilding(centerX + 4, centerY - 4, 'house', 'house');
+    this.spawnBuilding(centerX - 5, centerY - 2, 'house', 'house');
+    this.spawnBuilding(centerX + 5, centerY + 2, 'house', 'house');
+    
+    this.spawnBuilding(centerX - 6, centerY + 6, 'mill', 'mill');
+    this.spawnBuilding(centerX + 6, centerY - 6, 'barracks', 'barracks');
+
+    // 2. Scattered Buildings (Ruins/Neutral)
+    const buildingTypes: {type: BuildingType, texture: string}[] = [
+        { type: 'house', texture: 'house' },
+        { type: 'barracks', texture: 'barracks' },
+        { type: 'market', texture: 'market' },
+        { type: 'mill', texture: 'mill' },
+        { type: 'farm', texture: 'farm' }
+    ];
+
+    for (let i = 0; i < 40; i++) { // Spawn 40 random buildings
+        let x, y;
+        let valid = false;
+        let attempts = 0;
+
+        while (!valid && attempts < 20) {
+            x = Phaser.Math.Between(5, mapSize - 5);
+            y = Phaser.Math.Between(5, mapSize - 5);
+            
+            // Avoid center area (already populated)
+            const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+            if (dist < 15) {
+                attempts++;
+                continue;
+            }
+
+            // Check if water (simple check based on map generation logic or texture)
+            // Since we don't have direct access to tile type easily without querying map system
+            // We can check the texture key of the tile at x,y
+            const tile = this.mapSystem.getTileAt(x, y);
+            if (tile && tile.texture.key !== 'water' && tile.texture.key !== 'shore') {
+                valid = true;
+            }
+            attempts++;
+        }
+
+        if (valid && x !== undefined && y !== undefined) {
+            const building = buildingTypes[Phaser.Math.Between(0, buildingTypes.length - 1)];
+            this.spawnBuilding(x, y, building.type, building.texture);
+        }
+    }
+  }
+
+  private spawnBuilding(x: number, y: number, type: BuildingType, texture: string) {
+      const { isoX, isoY } = this.mapSystem.cartesianToIso(x, y);
+      const building = new Building(this, isoX, isoY, texture, type);
+      building.construct(100); // Instant build for decoration
+      this.buildings.push(building);
+  }
+
   private spawnAnimal(x: number, y: number, texture: string, type: AnimalType) {
     const { isoX, isoY } = this.mapSystem.cartesianToIso(x, y);
     const animal = new Animal(this, isoX, isoY, texture, type);
@@ -790,6 +770,45 @@ export default class GameScene extends Phaser.Scene {
 
     this.currentPopulation++;
     this.updatePopulationUI();
+  }
+
+  private checkCost(cost: { wood?: number; food?: number; gold?: number; stone?: number }): boolean {
+    if (cost.wood && this.resourceCounts.wood < cost.wood) return false;
+    if (cost.food && this.resourceCounts.food < cost.food) return false;
+    if (cost.gold && this.resourceCounts.gold < cost.gold) return false;
+    if (cost.stone && this.resourceCounts.stone < cost.stone) return false;
+    return true;
+  }
+
+  private deductCost(cost: { wood?: number; food?: number; gold?: number; stone?: number }) {
+    if (cost.wood) this.resourceCounts.wood -= cost.wood;
+    if (cost.food) this.resourceCounts.food -= cost.food;
+    if (cost.gold) this.resourceCounts.gold -= cost.gold;
+    if (cost.stone) this.resourceCounts.stone -= cost.stone;
+    this.updateResourceUI();
+  }
+
+  public tryProduceUnit(building: Building, unitType: string) {
+      // Define costs
+      let cost = {};
+      if (unitType === 'villager') {
+          cost = { food: 50 };
+      } else if (unitType === 'militia') {
+          cost = { food: 60, gold: 20 };
+      }
+
+      if (this.checkCost(cost)) {
+          if (this.currentPopulation >= this.maxPopulation) {
+              // TODO: Show pop limit message
+              console.log("Population limit reached");
+              return;
+          }
+          
+          this.deductCost(cost);
+          building.queueUnit(unitType);
+      } else {
+          console.log("Not enough resources");
+      }
   }
 
   public updateResourceUI() {
@@ -866,19 +885,14 @@ export default class GameScene extends Phaser.Scene {
       if (this.selectedBuilding.isConstructed()) {
         if (this.selectedBuilding.buildingType === 'town_center') {
           container.appendChild(this.createActionButton('Create Villager\n50F', () => {
-            if (this.resourceCounts.food >= 50) {
-              this.resourceCounts.food -= 50;
-              this.updateResourceUI();
-              this.selectedBuilding?.queueUnit('villager');
+            if (this.selectedBuilding) {
+                this.tryProduceUnit(this.selectedBuilding, 'villager');
             }
           }));
         } else if (this.selectedBuilding.buildingType === 'barracks') {
           container.appendChild(this.createActionButton('Create Militia\n60F 20G', () => {
-            if (this.resourceCounts.food >= 60 && this.resourceCounts.gold >= 20) {
-              this.resourceCounts.food -= 60;
-              this.resourceCounts.gold -= 20;
-              this.updateResourceUI();
-              this.selectedBuilding?.queueUnit('militia');
+            if (this.selectedBuilding) {
+                this.tryProduceUnit(this.selectedBuilding, 'militia');
             }
           }));
         }
@@ -1157,5 +1171,11 @@ export default class GameScene extends Phaser.Scene {
 
   public getUnits(): { x: number, y: number }[] {
     return this.units.map(u => ({ x: u.x, y: u.y }));
+  }
+
+  public shutdown() {
+      if (this.minimap) {
+          this.minimap.destroy();
+      }
   }
 }

@@ -1,14 +1,14 @@
-import GameScene from '../scenes/GameScene';
+import Phaser from 'phaser';
 
 export class Minimap {
-  private scene: GameScene;
+  private scene: Phaser.Scene;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private container: HTMLDivElement;
   private size: number = 150;
   private scale: number;
 
-  constructor(scene: GameScene, mapWidth: number, mapHeight: number) {
+  constructor(scene: Phaser.Scene, mapWidth: number, mapHeight: number) {
     this.scene = scene;
     
     // Calculate scale to fit map into minimap
@@ -80,7 +80,7 @@ export class Minimap {
 
   private drawWater(): void {
     // Get water tiles from scene
-    const waterTiles = this.scene.getWaterTiles?.() || [];
+    const waterTiles = (this.scene as any).getWaterTiles?.() || [];
     
     this.ctx.fillStyle = '#4a90e2'; // Water blue
     waterTiles.forEach((tile: { x: number; y: number }) => {
@@ -93,7 +93,7 @@ export class Minimap {
   private drawResources(): void {
     // Draw trees
     this.ctx.fillStyle = '#1a3d0a'; // Dark green for trees
-    const trees = this.scene.getResources?.('tree') || [];
+    const trees = (this.scene as any).getResources?.('tree') || [];
     trees.forEach((tree: any) => {
       const x = tree.x * this.scale;
       const y = tree.y * this.scale;
@@ -102,7 +102,7 @@ export class Minimap {
     
     // Draw gold mines
     this.ctx.fillStyle = '#ffd700'; // Gold
-    const goldMines = this.scene.getResources?.('gold') || [];
+    const goldMines = (this.scene as any).getResources?.('gold') || [];
     goldMines.forEach((mine: any) => {
       const x = mine.x * this.scale;
       const y = mine.y * this.scale;
@@ -111,7 +111,7 @@ export class Minimap {
     
     // Draw stone mines
     this.ctx.fillStyle = '#808080'; // Gray
-    const stoneMines = this.scene.getResources?.('stone') || [];
+    const stoneMines = (this.scene as any).getResources?.('stone') || [];
     stoneMines.forEach((mine: any) => {
       const x = mine.x * this.scale;
       const y = mine.y * this.scale;
@@ -120,7 +120,7 @@ export class Minimap {
   }
 
   private drawBuildings(): void {
-    const buildings = this.scene.getBuildings?.() || [];
+    const buildings = (this.scene as any).getBuildings?.() || [];
     
     buildings.forEach((building: any) => {
       const x = building.x * this.scale;
@@ -139,7 +139,7 @@ export class Minimap {
   }
 
   private drawUnits(): void {
-    const units = this.scene.getUnits?.() || [];
+    const units = (this.scene as any).getUnits?.() || [];
     
     this.ctx.fillStyle = '#4169e1'; // Royal blue for player units
     units.forEach((unit: any) => {

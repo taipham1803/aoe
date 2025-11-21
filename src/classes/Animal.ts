@@ -12,7 +12,7 @@ export class Animal extends Phaser.GameObjects.Container {
   private sprite: Phaser.GameObjects.Sprite;
   // private _animalType: AnimalType; // For future use (AI behavior)
   private food: number = 100;
-  // private _isAggressive: boolean = false; // For future use (attack player)
+  private _isAggressive: boolean = false;
   private hp: number = 20;
   private maxHp: number = 20;
   private isDead: boolean = false;
@@ -20,6 +20,13 @@ export class Animal extends Phaser.GameObjects.Container {
   private wanderInterval: number = 2000; // Change direction every 2 seconds
   private moveDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
   private speed: number = 20;
+  
+  // Combat
+  private attackDamage: number = 0;
+  private attackRange: number = 0;
+  private attackCooldown: number = 1500;
+  private lastAttackTime: number = 0;
+  private target: any = null; // Unit or Villager
 
   constructor(
     scene: Phaser.Scene,
@@ -45,10 +52,12 @@ export class Animal extends Phaser.GameObjects.Container {
         break;
       case AnimalType.BOAR:
         this.food = 200;
-        // this._isAggressive = true;
+        this._isAggressive = true;
         this.speed = 25;
         this.maxHp = 75;
         this.hp = 75;
+        this.attackDamage = 8;
+        this.attackRange = 30;
         break;
     }
 
@@ -68,6 +77,12 @@ export class Animal extends Phaser.GameObjects.Container {
   public update(delta: number) {
     if (this.isDead) return;
 
+    // Aggression Logic
+    if (this._isAggressive && this.target) {
+       this.updateCombat(delta);
+       return; // Skip wandering if fighting
+    }
+
     // Wander behavior
     this.wanderTimer += delta;
     if (this.wanderTimer >= this.wanderInterval) {
@@ -81,6 +96,47 @@ export class Animal extends Phaser.GameObjects.Container {
 
     // Update depth for isometric sorting
     this.setDepth(this.y);
+  }
+
+  private updateCombat(delta: number) {
+      if (!this.target || !this.target.active || (this.target.isDead && this.target.isDead())) {
+          this.target = null;
+          return;
+      }
+
+      const distance = Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y);
+
+      if (distance <= this.attackRange) {
+          // Attack
+          const now = this.scene.time.now;
+          if (now - this.lastAttackTime >= this.attackCooldown) {
+              this.lastAttackTime = now;
+              if (this.target.takeDamage) {
+                  this.target.takeDamage(this.attackDamage);
+                  
+                  // Animation
+                  this.scene.tweens.add({
+                      targets: this.sprite,
+                      x: this.sprite.x + (this.target.x - this.x) * 0.2,
+                      y: this.sprite.y + (this.target.y - this.y) * 0.2,
+                      duration: 100,
+                      yoyo: true
+                  });
+              }
+          }
+      } else {
+          // Chase
+          const angle = Phaser.Math.Angle.Between(this.x, this.y, this.target.x, this.target.y);
+          this.x += Math.cos(angle) * this.speed * (delta / 1000);
+          this.y += Math.sin(angle) * this.speed * (delta / 1000);
+          
+          // Flip sprite
+          if (Math.abs(Math.cos(angle)) > 0.1) {
+             this.sprite.setFlipX(Math.cos(angle) < 0);
+          }
+          
+          this.setDepth(this.y);
+      }
   }
 
   private setRandomDirection() {
@@ -107,10 +163,15 @@ export class Animal extends Phaser.GameObjects.Container {
     return this.food;
   }
 
-  public takeDamage(amount: number) {
+  public takeDamage(amount: number, attacker?: any) {
     if (this.isDead) return;
     
     this.hp -= amount;
+    
+    // Retaliate if aggressive
+    if (this._isAggressive && attacker && !this.target) {
+        this.target = attacker;
+    }
     
     // Flash red
     this.sprite.setTint(0xff0000);

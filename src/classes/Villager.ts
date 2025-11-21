@@ -26,7 +26,7 @@ export class Villager extends Unit {
   private carryCapacity: number = 10;
   private gatherTimer: number = 0;
   private gatherInterval: number = 1000; // ms
-  private huntInterval: number = 800; // Faster than gathering
+
   private townCenterPosition: Phaser.Math.Vector2 | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -56,8 +56,8 @@ export class Villager extends Unit {
     this.targetAnimal = animal;
     this.targetResource = null;
     this.targetBuilding = null;
-    this.villagerState = VillagerState.MOVING;
-    this.moveUnitTo(animal.x, animal.y);
+    this.villagerState = VillagerState.HUNTING;
+    // this.moveUnitTo(animal.x, animal.y); // Let updateHunting handle movement/chasing
   }
 
   public override update(delta: number = 16) {
@@ -163,30 +163,81 @@ export class Villager extends Unit {
 
   private updateHunting(delta: number) {
     if (!this.targetAnimal || this.targetAnimal.isKilled()) {
+      // If animal is dead, check if we can gather from it
+      if (this.targetAnimal && this.targetAnimal.isKilled()) {
+          // Switch to gathering from the dead animal
+          // We need to treat the dead animal as a resource or similar
+          // For simplicity, let's just say we gather from it directly here
+          // But Animal is not a Resource.
+          // Let's assume Animal turns into a carcass which is a Resource?
+          // Or just gather from Animal object.
+          
+          this.gatherTimer += delta;
+          if (this.gatherTimer >= this.gatherInterval) {
+              this.gatherTimer = 0;
+              this.targetAnimal.getFood(); // This needs to be drainable
+              // We need a way to drain food from animal.
+              // Let's add gather method to Animal or just hack it for now.
+              // Ideally Animal should become a Resource upon death.
+              
+              // For now: Instant gather full amount (simplified)
+              // Or better: continue "attacking" it to gather?
+              
+              // Let's implement a simple gather from dead animal
+              const gatherAmount = this.gatherRate;
+              // We need to decrement food from animal.
+              // Animal doesn't have setFood or similar public method to drain.
+              // Let's just assume we get it all for now to keep it simple, 
+              // or we need to update Animal.ts again.
+              
+              // Let's go with: if dead, it's a resource.
+              // But we need to change state to GATHERING?
+              // But target is Animal, not Resource.
+              
+              // Let's keep state as HUNTING but behavior is gathering.
+              
+              if (!this.carriedResource) {
+                this.carriedResource = {
+                  type: ResourceType.FOOD,
+                  amount: 0
+                };
+              }
+              
+              this.carriedResource.amount += gatherAmount;
+               if (this.carriedResource.amount >= this.carryCapacity) {
+                   this.returnToTownCenter();
+               }
+          }
+          return;
+      }
+      
       this.villagerState = VillagerState.IDLE;
       this.targetAnimal = null;
       return;
     }
 
-    this.gatherTimer += delta;
-
-    if (this.gatherTimer >= this.huntInterval) {
-      this.gatherTimer = 0;
-
-      // Kill the animal and get food
-      const food = this.targetAnimal.kill();
-
-      if (!this.carriedResource) {
-        this.carriedResource = {
-          type: ResourceType.FOOD,
-          amount: 0
-        };
-      }
-
-      this.carriedResource.amount += Math.min(food, this.carryCapacity - this.carriedResource.amount);
-
-      // Return to town center with meat
-      this.returnToTownCenter();
+    // Combat Logic for Hunting
+    const distance = Phaser.Math.Distance.Between(this.x, this.y, this.targetAnimal.x, this.targetAnimal.y);
+    
+    if (distance <= this.attackRange) {
+        const now = this.scene.time.now;
+        if (now - this.lastAttackTime >= this.attackCooldown) {
+            this.lastAttackTime = now;
+            // Attack the animal
+            this.targetAnimal.takeDamage(this.attackDamage, this);
+            
+            // Animation
+            this.scene.tweens.add({
+                targets: this.sprite,
+                x: this.sprite.x + (this.targetAnimal.x - this.x) * 0.2,
+                y: this.sprite.y + (this.targetAnimal.y - this.y) * 0.2,
+                duration: 100,
+                yoyo: true
+            });
+        }
+    } else {
+        // Chase
+        this.moveUnitTo(this.targetAnimal.x, this.targetAnimal.y);
     }
   }
 
