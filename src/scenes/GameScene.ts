@@ -709,6 +709,57 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  private clearActionButtons() {
+    const container = (this as any).actionButtonsContainer as HTMLElement;
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
+
+  private createActionButton(label: string, callback: () => void): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.className = 'action-btn';
+    button.textContent = label;
+    button.onclick = callback;
+    return button;
+  }
+
+  private updateBottomBarUI() {
+    this.clearActionButtons();
+    const container = (this as any).actionButtonsContainer as HTMLElement;
+    const selectionNameDisplay = (this as any).selectionNameDisplay as HTMLElement;
+    const selectionHPDisplay = (this as any).selectionHPDisplay as HTMLElement;
+
+    if (!container || !selectionNameDisplay || !selectionHPDisplay) return;
+
+    // Update selection info
+    if (this.selectedUnits.length === 1) {
+      const unit = this.selectedUnits[0];
+      selectionNameDisplay.textContent = unit instanceof Villager ? 'VILLAGER' : 'UNIT';
+      selectionHPDisplay.textContent = `HP: ${unit.getHp()}/${unit.getMaxHp()}`;
+      selectionNameDisplay.style.display = 'block';
+      selectionHPDisplay.style.display = 'block';
+
+      // Show build menu for villagers
+      if (unit instanceof Villager && !this.placingBuilding) {
+        container.appendChild(this.createActionButton('🏠 House\n50W', () => this.startBuildingPlacement('house')));
+        container.appendChild(this.createActionButton('⚔️ Barracks\n150W', () => this.startBuildingPlacement('barracks')));
+        container.appendChild(this.createActionButton('🏪 Market\n100W 50G', () => this.startBuildingPlacement('market')));
+        container.appendChild(this.createActionButton('🌾 Mill\n100W', () => this.startBuildingPlacement('mill')));
+        container.appendChild(this.createActionButton('🚜 Farm\n60W', () => this.startBuildingPlacement('farm')));
+      }
+    } else if (this.selectedUnits.length > 1) {
+      selectionNameDisplay.textContent = `${this.selectedUnits.length} Units Selected`;
+      selectionHPDisplay.textContent = '';
+      selectionNameDisplay.style.display = 'block';
+      selectionHPDisplay.style.display = 'none';
+    } else {
+      selectionNameDisplay.style.display = 'none';
+      selectionHPDisplay.style.display = 'none';
+    }
+  }
+
+
   private startBuildingPlacement(type: BuildingType) {
     if (this.placingBuilding) return;
 
@@ -871,24 +922,34 @@ export default class GameScene extends Phaser.Scene {
           this.selectUnit(clickedUnit);
         }
       } else {
-        this.units.forEach(unit => {
-          if (Phaser.Geom.Rectangle.Contains(selectionRect, unit.x, unit.y)) {
-            this.selectUnit(unit);
-          }
-        });
+        this.selectUnitsInRect(selectionRect);
       }
     }
   }
 
   private selectUnit(unit: Unit) {
+    unit.select();
     if (!this.selectedUnits.includes(unit)) {
-      unit.select();
       this.selectedUnits.push(unit);
     }
+    this.updateBottomBarUI();
   }
 
   private deselectAll() {
     this.selectedUnits.forEach(unit => unit.deselect());
     this.selectedUnits = [];
+    this.updateBottomBarUI();
+  }
+
+  private selectUnitsInRect(rect: Phaser.Geom.Rectangle) {
+    this.units.forEach(unit => {
+      if (rect.contains(unit.x, unit.y)) {
+        unit.select();
+        if (!this.selectedUnits.includes(unit)) {
+          this.selectedUnits.push(unit);
+        }
+      }
+    });
+    this.updateBottomBarUI();
   }
 }
