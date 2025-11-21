@@ -447,9 +447,8 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(1);
 
     // Initialize Minimap
-    const mapWidth = this.mapSystem.getWidth() * 64; // tile width
-    const mapHeight = this.mapSystem.getHeight() * 32; // tile height
-    // this.minimap = new Minimap(this, mapWidth, mapHeight);
+    // Initialize Minimap
+    // this.minimap = new Minimap(this, this.mapSystem.getWidth() * 64, this.mapSystem.getHeight() * 32);
 
     // Selection Graphics
     this.selectionGraphics = this.add.graphics();
