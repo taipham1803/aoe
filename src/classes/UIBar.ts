@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 
 export class UIBar {
-  private _scene: Phaser.Scene;
   private background: Phaser.GameObjects.Graphics;
   private container: Phaser.GameObjects.Container;
   private x: number;
@@ -10,7 +9,6 @@ export class UIBar {
   private height: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, width: number, height: number) {
-    this._scene = scene;
     this.x = x;
     this.y = y;
     this.width = width;

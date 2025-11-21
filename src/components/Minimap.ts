@@ -1,5 +1,4 @@
-import Phaser from 'phaser';
-import type { GameScene } from '../scenes/GameScene';
+import GameScene from '../scenes/GameScene';
 
 export class Minimap {
   private scene: GameScene;
@@ -7,14 +6,10 @@ export class Minimap {
   private ctx: CanvasRenderingContext2D;
   private container: HTMLDivElement;
   private size: number = 150;
-  private mapWidth: number;
-  private mapHeight: number;
   private scale: number;
 
   constructor(scene: GameScene, mapWidth: number, mapHeight: number) {
     this.scene = scene;
-    this.mapWidth = mapWidth;
-    this.mapHeight = mapHeight;
     
     // Calculate scale to fit map into minimap
     this.scale = this.size / Math.max(mapWidth, mapHeight);

@@ -7,12 +7,14 @@ import { Building, type BuildingType } from '../classes/Building';
 import { Animal, AnimalType } from '../classes/Animal';
 import { Militia } from '../classes/Militia';
 import { Minimap } from '../components/Minimap';
+import { PathfindingSystem } from '../systems/PathfindingSystem';
 
 export default class GameScene extends Phaser.Scene {
   private mapSystem!: MapSystem;
+  private pathfindingSystem!: PathfindingSystem;
   private minimap!: Minimap;
   private units: Unit[] = [];
-  private villagers: Villager[] = [];
+  public villagers: Villager[] = [];
   private resources: Resource[] = [];
   private buildings: Building[] = [];
   private animals: Animal[] = [];
@@ -23,7 +25,7 @@ export default class GameScene extends Phaser.Scene {
   private dragStart: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
   
   // Economy
-  private resourceCounts = {
+  public resourceCounts = {
     wood: 200,
     food: 200,
     gold: 100,
@@ -452,6 +454,9 @@ export default class GameScene extends Phaser.Scene {
     this.mapSystem = new MapSystem(this, mapSize, mapSize, 64, 32);
     this.mapSystem.createIsoMap();
 
+    // Initialize Pathfinding System
+    this.pathfindingSystem = new PathfindingSystem(this.mapSystem);
+
     // Generate varied terrain
     for (let y = 0; y < mapSize; y++) {
       for (let x = 0; x < mapSize; x++) {
@@ -787,7 +792,7 @@ export default class GameScene extends Phaser.Scene {
     this.updatePopulationUI();
   }
 
-  private updateResourceUI() {
+  public updateResourceUI() {
     const resourcesDisplay = (this as any).resourcesDisplay as HTMLElement;
     if (resourcesDisplay) {
       resourcesDisplay.textContent = `🪵 Wood: ${this.resourceCounts.wood}  🍖 Food: ${this.resourceCounts.food}  💰 Gold: ${this.resourceCounts.gold}  🪨 Stone: ${this.resourceCounts.stone}`;
@@ -1112,5 +1117,45 @@ export default class GameScene extends Phaser.Scene {
       }
     });
     this.updateBottomBarUI();
+  }
+
+  public getMapSystem(): MapSystem {
+    return this.mapSystem;
+  }
+
+  public getPathfindingSystem(): PathfindingSystem {
+    return this.pathfindingSystem;
+  }
+
+  public getWaterTiles(): { x: number, y: number }[] {
+    const waterTiles: { x: number, y: number }[] = [];
+    for (let y = 0; y < this.mapSystem.getHeight(); y++) {
+      for (let x = 0; x < this.mapSystem.getWidth(); x++) {
+        const tile = this.mapSystem.getTileAt(x, y);
+        if (tile && tile.texture.key === 'water') {
+          const { isoX, isoY } = this.mapSystem.cartesianToIso(x, y);
+          waterTiles.push({ x: isoX, y: isoY });
+        }
+      }
+    }
+    return waterTiles;
+  }
+
+  public getResources(type?: string): { x: number, y: number }[] {
+    const result: { x: number, y: number }[] = [];
+    this.resources.forEach(res => {
+      if (!type || (res as any).texture.key === type) {
+         result.push({ x: res.x, y: res.y });
+      }
+    });
+    return result;
+  }
+
+  public getBuildings(): { x: number, y: number, type: string }[] {
+    return this.buildings.map(b => ({ x: b.x, y: b.y, type: (b as any).buildingType || 'building' }));
+  }
+
+  public getUnits(): { x: number, y: number }[] {
+    return this.units.map(u => ({ x: u.x, y: u.y }));
   }
 }
