@@ -13,6 +13,8 @@ export class Animal extends Phaser.GameObjects.Container {
   // private _animalType: AnimalType; // For future use (AI behavior)
   private food: number = 100;
   // private _isAggressive: boolean = false; // For future use (attack player)
+  private hp: number = 20;
+  private maxHp: number = 20;
   private isDead: boolean = false;
   private wanderTimer: number = 0;
   private wanderInterval: number = 2000; // Change direction every 2 seconds
@@ -45,6 +47,8 @@ export class Animal extends Phaser.GameObjects.Container {
         this.food = 200;
         // this._isAggressive = true;
         this.speed = 25;
+        this.maxHp = 75;
+        this.hp = 75;
         break;
     }
 
@@ -90,9 +94,34 @@ export class Animal extends Phaser.GameObjects.Container {
   }
 
   public kill(): number {
+    if (this.isDead) return 0;
     this.isDead = true;
     this.sprite.setAlpha(0.5);
+    this.sprite.setTint(0x888888); // Grey out
+    
+    // Destroy after 10 seconds (decay)
+    this.scene.time.delayedCall(10000, () => {
+        this.destroy();
+    });
+
     return this.food;
+  }
+
+  public takeDamage(amount: number) {
+    if (this.isDead) return;
+    
+    this.hp -= amount;
+    
+    // Flash red
+    this.sprite.setTint(0xff0000);
+    this.scene.time.delayedCall(100, () => {
+        if (!this.isDead) this.sprite.clearTint();
+    });
+
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.kill();
+    }
   }
 
   public getFood(): number {
@@ -110,5 +139,13 @@ export class Animal extends Phaser.GameObjects.Container {
       32,
       32
     );
+  }
+
+  public getMaxHp(): number {
+    return this.maxHp;
+  }
+
+  public getHp(): number {
+    return this.hp;
   }
 }

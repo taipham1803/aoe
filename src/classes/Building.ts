@@ -3,6 +3,15 @@ import Phaser from 'phaser';
 export type BuildingType = 'house' | 'town_center' | 'barracks' | 'market' | 'mill' | 'farm';
 
 export class Building extends Phaser.GameObjects.Container {
+  public static COSTS: Record<BuildingType, { wood?: number; food?: number; gold?: number; stone?: number }> = {
+    'house': { wood: 50 },
+    'town_center': { wood: 275, stone: 100 },
+    'barracks': { wood: 175 },
+    'market': { wood: 175 },
+    'mill': { wood: 100 },
+    'farm': { wood: 60 }
+  };
+
   private sprite: Phaser.GameObjects.Sprite;
   public buildingType: BuildingType;
   private maxHp: number;

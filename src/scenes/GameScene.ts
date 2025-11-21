@@ -5,15 +5,19 @@ import { Villager } from '../classes/Villager';
 import { Resource, ResourceType } from '../classes/Resource';
 import { Building, type BuildingType } from '../classes/Building';
 import { Animal, AnimalType } from '../classes/Animal';
+import { Militia } from '../classes/Militia';
+import { Minimap } from '../components/Minimap';
 
 export default class GameScene extends Phaser.Scene {
   private mapSystem!: MapSystem;
+  private minimap!: Minimap;
   private units: Unit[] = [];
   private villagers: Villager[] = [];
   private resources: Resource[] = [];
   private buildings: Building[] = [];
   private animals: Animal[] = [];
   private selectedUnits: Unit[] = [];
+  private selectedBuilding: Building | null = null;
   private selectionGraphics!: Phaser.GameObjects.Graphics;
   private isDragging: boolean = false;
   private dragStart: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
@@ -25,7 +29,13 @@ export default class GameScene extends Phaser.Scene {
     gold: 100,
     stone: 100
   };
+  private currentPopulation: number = 0;
+  private maxPopulation: number = 5; // Base 5 from Town Center
   private townCenterPos!: Phaser.Math.Vector2;
+
+  // ... (rest of properties)
+
+
 
   // Building System
   private placingBuilding: { type: BuildingType; ghost: Phaser.GameObjects.Sprite } | null = null;
@@ -531,6 +541,11 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.centerOn(tcPos.isoX, tcPos.isoY);
     this.cameras.main.setZoom(1);
 
+    // Initialize Minimap
+    const mapWidth = this.mapSystem.getWidth() * 64; // tile width
+    const mapHeight = this.mapSystem.getHeight() * 32; // tile height
+    this.minimap = new Minimap(this, mapWidth, mapHeight);
+
     // Selection Graphics
     this.selectionGraphics = this.add.graphics();
     this.selectionGraphics.setDepth(1000);
@@ -539,6 +554,11 @@ export default class GameScene extends Phaser.Scene {
     this.events.on('resourceCollected', (data: { type: ResourceType; amount: number }) => {
       this.resourceCounts[data.type] += data.amount;
       this.updateResourceUI();
+    });
+
+    // Unit creation event
+    this.events.on('unitCreated', (data: { type: string; x: number; y: number }) => {
+      this.spawnUnit(data.type, data.x, data.y);
     });
 
     // Input Handling
@@ -582,6 +602,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Update HTML resource display
     this.updateResourceUI();
+    this.updatePopulationUI();
 
     // Building Menu (Hidden by default)
     const buildMenuX = 10;
@@ -662,6 +683,10 @@ export default class GameScene extends Phaser.Scene {
     this.villagers.forEach(villager => villager.update(delta));
     this.animals.forEach(animal => animal.update(delta));
     
+    if (this.minimap) {
+      this.minimap.update();
+    }
+    
     // Update building menu visibility
     const hasVillagerSelected = this.selectedUnits.some(unit => unit instanceof Villager);
     const showMenu = hasVillagerSelected && !this.placingBuilding;
@@ -669,11 +694,32 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private spawnVillager(x: number, y: number) {
+    if (this.currentPopulation >= this.maxPopulation) {
+      // TODO: Show "Population Limit Reached" message
+      return;
+    }
+
     const { isoX, isoY } = this.mapSystem.cartesianToIso(x, y);
     const villager = new Villager(this, isoX, isoY);
     villager.setTownCenter(this.townCenterPos.x, this.townCenterPos.y);
     this.villagers.push(villager);
     this.units.push(villager);
+    this.currentPopulation++;
+    this.updatePopulationUI();
+    
+    // Select the new villager
+    this.deselectAll();
+    this.selectUnit(villager);
+
+    // Cleanup on destroy
+    villager.once('destroy', () => {
+      this.units = this.units.filter(u => u !== villager);
+      this.villagers = this.villagers.filter(v => v !== villager);
+      this.selectedUnits = this.selectedUnits.filter(u => u !== villager);
+      this.updateBottomBarUI();
+      this.currentPopulation--;
+      this.updatePopulationUI();
+    });
   }
 
   private spawnResource(x: number, y: number, texture: string, type: ResourceType) {
@@ -700,12 +746,64 @@ export default class GameScene extends Phaser.Scene {
     const { isoX, isoY } = this.mapSystem.cartesianToIso(x, y);
     const animal = new Animal(this, isoX, isoY, texture, type);
     this.animals.push(animal);
+    
+    animal.once('destroy', () => {
+        this.animals = this.animals.filter(a => a !== animal);
+    });
+  }
+
+  private spawnUnit(type: string, x: number, y: number) {
+    if (this.currentPopulation >= this.maxPopulation) {
+      // TODO: Show warning
+      return;
+    }
+
+    // Spawn near the building (x, y are building coordinates)
+    // Let's spawn slightly offset
+    const spawnX = x + 32;
+    const spawnY = y + 32;
+
+    if (type === 'villager') {
+      const villager = new Villager(this, spawnX, spawnY);
+      villager.setTownCenter(this.townCenterPos.x, this.townCenterPos.y);
+      this.villagers.push(villager);
+      this.units.push(villager);
+    } else if (type === 'militia') {
+      const militia = new Militia(this, spawnX, spawnY);
+      this.units.push(militia);
+      
+      militia.once('destroy', () => {
+        this.units = this.units.filter(u => u !== militia);
+        this.selectedUnits = this.selectedUnits.filter(u => u !== militia);
+        this.updateBottomBarUI();
+        // Militia doesn't count towards population? In AOE they do.
+        // Let's assume they do for now.
+        this.currentPopulation--;
+        this.updatePopulationUI();
+      });
+    }
+
+    this.currentPopulation++;
+    this.updatePopulationUI();
   }
 
   private updateResourceUI() {
     const resourcesDisplay = (this as any).resourcesDisplay as HTMLElement;
     if (resourcesDisplay) {
       resourcesDisplay.textContent = `🪵 Wood: ${this.resourceCounts.wood}  🍖 Food: ${this.resourceCounts.food}  💰 Gold: ${this.resourceCounts.gold}  🪨 Stone: ${this.resourceCounts.stone}`;
+    }
+  }
+
+  private updatePopulationUI() {
+    const popDisplay = document.getElementById('population-display');
+    if (popDisplay) {
+      popDisplay.textContent = `👥 ${this.currentPopulation}/${this.maxPopulation}`;
+      // Visual warning if at max population
+      if (this.currentPopulation >= this.maxPopulation) {
+        popDisplay.style.color = '#ff6b6b';
+      } else {
+        popDisplay.style.color = '#ffffff';
+      }
     }
   }
 
@@ -753,6 +851,33 @@ export default class GameScene extends Phaser.Scene {
       selectionHPDisplay.textContent = '';
       selectionNameDisplay.style.display = 'block';
       selectionHPDisplay.style.display = 'none';
+    } else if (this.selectedBuilding) {
+      selectionNameDisplay.textContent = this.selectedBuilding.buildingType.toUpperCase().replace('_', ' ');
+      selectionHPDisplay.textContent = `HP: ${this.selectedBuilding.getHp()}/${this.selectedBuilding.getMaxHp()}`;
+      selectionNameDisplay.style.display = 'block';
+      selectionHPDisplay.style.display = 'block';
+
+      // Show production buttons
+      if (this.selectedBuilding.isConstructed()) {
+        if (this.selectedBuilding.buildingType === 'town_center') {
+          container.appendChild(this.createActionButton('Create Villager\n50F', () => {
+            if (this.resourceCounts.food >= 50) {
+              this.resourceCounts.food -= 50;
+              this.updateResourceUI();
+              this.selectedBuilding?.queueUnit('villager');
+            }
+          }));
+        } else if (this.selectedBuilding.buildingType === 'barracks') {
+          container.appendChild(this.createActionButton('Create Militia\n60F 20G', () => {
+            if (this.resourceCounts.food >= 60 && this.resourceCounts.gold >= 20) {
+              this.resourceCounts.food -= 60;
+              this.resourceCounts.gold -= 20;
+              this.updateResourceUI();
+              this.selectedBuilding?.queueUnit('militia');
+            }
+          }));
+        }
+      }
     } else {
       selectionNameDisplay.style.display = 'none';
       selectionHPDisplay.style.display = 'none';
@@ -780,13 +905,27 @@ export default class GameScene extends Phaser.Scene {
       const gridY = Math.round(y);
       const { isoX, isoY } = this.mapSystem.cartesianToIso(gridX, gridY);
 
-      // Check cost
-      if (this.resourceCounts.wood >= 50) {
-        this.resourceCounts.wood -= 50;
-        this.updateResourceUI();
+      const cost = Building.COSTS[this.placingBuilding.type];
+      if (this.resourceCounts.wood >= (cost.wood || 0) &&
+          this.resourceCounts.food >= (cost.food || 0) &&
+          this.resourceCounts.gold >= (cost.gold || 0) &&
+          this.resourceCounts.stone >= (cost.stone || 0)) {
 
         const building = new Building(this, isoX, isoY, this.placingBuilding.type, this.placingBuilding.type);
         this.buildings.push(building);
+        
+        // Increase population limit if House
+        if (this.placingBuilding.type === 'house') {
+          this.maxPopulation += 5;
+          this.updatePopulationUI();
+        }
+        
+        // Deduct resources
+        this.resourceCounts.wood -= (cost.wood || 0);
+        this.resourceCounts.food -= (cost.food || 0);
+        this.resourceCounts.gold -= (cost.gold || 0);
+        this.resourceCounts.stone -= (cost.stone || 0);
+        this.updateResourceUI();
 
         // Command selected villagers to build
         this.selectedUnits.forEach(unit => {
@@ -847,10 +986,13 @@ export default class GameScene extends Phaser.Scene {
           }
         });
       } else if (clickedAnimal) {
-        // Command villagers to hunt
+        // Command villagers to hunt, others to attack
         this.selectedUnits.forEach(unit => {
           if (unit instanceof Villager) {
             unit.hunt(clickedAnimal);
+          } else {
+            // Military units attack
+            unit.attackTarget(clickedAnimal);
           }
         });
       } else if (clickedBuilding) {
@@ -920,6 +1062,14 @@ export default class GameScene extends Phaser.Scene {
         );
         if (clickedUnit) {
           this.selectUnit(clickedUnit);
+        } else {
+            // Check for buildings
+            const clickedBuilding = this.buildings.find(building => 
+                building.getBounds().contains(this.input.activePointer.worldX, this.input.activePointer.worldY)
+            );
+            if (clickedBuilding) {
+                this.selectBuilding(clickedBuilding);
+            }
         }
       } else {
         this.selectUnitsInRect(selectionRect);
@@ -938,7 +1088,18 @@ export default class GameScene extends Phaser.Scene {
   private deselectAll() {
     this.selectedUnits.forEach(unit => unit.deselect());
     this.selectedUnits = [];
+    if (this.selectedBuilding) {
+        this.selectedBuilding.deselect();
+        this.selectedBuilding = null;
+    }
     this.updateBottomBarUI();
+  }
+
+  private selectBuilding(building: Building) {
+      this.deselectAll();
+      this.selectedBuilding = building;
+      building.select();
+      this.updateBottomBarUI();
   }
 
   private selectUnitsInRect(rect: Phaser.Geom.Rectangle) {

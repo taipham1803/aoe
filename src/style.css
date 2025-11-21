@@ -40,6 +40,15 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
+#population-display {
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 2px 2px 0 #000;
+  margin-left: 20px;
+  margin-right: auto;
+}
+
 #age-display {
   color: #ffd700;
   font-size: 20px;

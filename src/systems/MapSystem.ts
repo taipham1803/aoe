@@ -87,6 +87,14 @@ export class MapSystem {
     return true;
   }
 
+  public getWidth(): number {
+    return this.mapWidth;
+  }
+
+  public getHeight(): number {
+    return this.mapHeight;
+  }
+
   public setBlocked(x: number, y: number, blocked: boolean) {
     if (blocked) {
       this.blockedTiles.add(`${x},${y}`);
