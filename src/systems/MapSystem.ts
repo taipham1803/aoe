@@ -7,6 +7,7 @@ export class MapSystem {
   private tileWidth: number;
   private tileHeight: number;
   private tiles: Phaser.GameObjects.Image[][] = [];
+  private blockedTiles: Set<string> = new Set(); // Format: "x,y"
 
   constructor(scene: Phaser.Scene, mapWidth: number, mapHeight: number, tileWidth: number, tileHeight: number) {
     this.scene = scene;
@@ -56,6 +57,41 @@ export class MapSystem {
     const tile = this.getTileAt(x, y);
     if (tile) {
       tile.setTexture(texture);
+    }
+  }
+
+  public isWalkable(x: number, y: number): boolean {
+    // Check bounds
+    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) {
+      return false;
+    }
+    
+    // Check if tile exists and has a texture that implies walkability
+    // For now, we'll assume everything is walkable unless explicitly blocked
+    // In a real implementation, we might check tile types (water vs land)
+    
+    // Check specific tile types that are not walkable by default (like deep water)
+    // This depends on how we store tile data. For now, let's rely on an external collision map
+    // or check the texture key if we want to be simple.
+    const tile = this.getTileAt(x, y);
+    if (!tile) return false;
+    
+    const texture = tile.texture.key;
+    if (texture === 'water') return false; // Deep water blocks movement
+    
+    // Check dynamic obstacles
+    if (this.blockedTiles.has(`${x},${y}`)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  public setBlocked(x: number, y: number, blocked: boolean) {
+    if (blocked) {
+      this.blockedTiles.add(`${x},${y}`);
+    } else {
+      this.blockedTiles.delete(`${x},${y}`);
     }
   }
 }

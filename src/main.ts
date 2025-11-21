@@ -7,12 +7,13 @@ const config: Phaser.Types.Core.GameConfig = {
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#2d2d2d',
+  parent: 'game-container',
   scene: [GameScene],
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  pixelArt: true, // Good for pixel art style games like AOE
+  pixelArt: true,
 };
 
 new Phaser.Game(config);

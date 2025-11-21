@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,7 +7,24 @@
     <title>aoe</title>
   </head>
   <body>
-    <div id="app"></div>
+    <!-- Top UI Bar -->
+    <div id="top-bar">
+      <div id="resources-display"></div>
+      <div id="age-display">Dark Age</div>
+    </div>
+
+    <!-- Phaser Game Canvas -->
+    <div id="game-container"></div>
+
+    <!-- Bottom UI Bar -->
+    <div id="bottom-bar">
+      <div id="selection-info">
+        <div id="selection-name"></div>
+        <div id="selection-hp"></div>
+      </div>
+      <div id="action-buttons"></div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

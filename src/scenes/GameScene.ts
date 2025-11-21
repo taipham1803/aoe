@@ -26,7 +26,6 @@ export default class GameScene extends Phaser.Scene {
     stone: 100
   };
   private townCenterPos!: Phaser.Math.Vector2;
-  private resourceUI!: Phaser.GameObjects.Text;
 
   // Building System
   private placingBuilding: { type: BuildingType; ghost: Phaser.GameObjects.Sprite } | null = null;
@@ -419,6 +418,25 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // Initialize HTML UI elements
+    const resourcesDisplay = document.getElementById('resources-display');
+    const ageDisplay = document.getElementById('age-display');
+    const selectionNameDisplay = document.getElementById('selection-name');
+    const selectionHPDisplay = document.getElementById('selection-hp');
+    const actionButtonsContainer = document.getElementById('action-buttons');
+    
+    if (!resourcesDisplay || !ageDisplay || !selectionNameDisplay || !selectionHPDisplay || !actionButtonsContainer) {
+      console.error('HTML UI elements not found!');
+      return;
+    }
+    
+    // Store references
+    (this as any).resourcesDisplay = resourcesDisplay;
+    (this as any).ageDisplay = ageDisplay;
+    (this as any).selectionNameDisplay = selectionNameDisplay;
+    (this as any).selectionHPDisplay = selectionHPDisplay;
+    (this as any).actionButtonsContainer = actionButtonsContainer;
+
     // Initialize Map System (50x50 Map)
     const mapSize = 50;
     this.mapSystem = new MapSystem(this, mapSize, mapSize, 64, 32);
@@ -562,13 +580,7 @@ export default class GameScene extends Phaser.Scene {
       padding: { x: 5, y: 5 }
     }).setScrollFactor(0).setDepth(2000);
 
-    // Resource UI
-    this.resourceUI = this.add.text(10, 70, '', {
-      color: '#ffffff',
-      fontSize: '16px',
-      backgroundColor: '#000000',
-      padding: { x: 5, y: 5 }
-    }).setScrollFactor(0).setDepth(2000);
+    // Update HTML resource display
     this.updateResourceUI();
 
     // Building Menu (Hidden by default)
@@ -691,9 +703,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private updateResourceUI() {
-    this.resourceUI.setText(
-      `🌲 Wood: ${this.resourceCounts.wood}  🍖 Food: ${this.resourceCounts.food}  💰 Gold: ${this.resourceCounts.gold}  🪨 Stone: ${this.resourceCounts.stone}`
-    );
+    const resourcesDisplay = (this as any).resourcesDisplay as HTMLElement;
+    if (resourcesDisplay) {
+      resourcesDisplay.textContent = `🪵 Wood: ${this.resourceCounts.wood}  🍖 Food: ${this.resourceCounts.food}  💰 Gold: ${this.resourceCounts.gold}  🪨 Stone: ${this.resourceCounts.stone}`;
+    }
   }
 
   private startBuildingPlacement(type: BuildingType) {

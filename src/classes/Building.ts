@@ -4,9 +4,11 @@ export type BuildingType = 'house' | 'town_center' | 'barracks' | 'market' | 'mi
 
 export class Building extends Phaser.GameObjects.Container {
   private sprite: Phaser.GameObjects.Sprite;
-  // private buildingType: BuildingType; // Unused for now
+  public buildingType: BuildingType;
   private maxHp: number;
   private hp: number;
+  public widthInTiles: number = 1;
+  public heightInTiles: number = 1;
   private constructionProgress: number = 0; // 0 to 100
   private isCompleted: boolean = false;
   private selectionCircle: Phaser.GameObjects.Graphics;
@@ -20,9 +22,23 @@ export class Building extends Phaser.GameObjects.Container {
     maxHp: number = 1000
   ) {
     super(scene, x, y);
-    // this.buildingType = type;
+    this.buildingType = _type;
     this.maxHp = maxHp;
     this.hp = 1; // Start with low HP
+
+    // Set size based on type
+    switch (_type) {
+      case 'town_center':
+      case 'barracks':
+      case 'market':
+        this.widthInTiles = 2;
+        this.heightInTiles = 2;
+        break;
+      default:
+        this.widthInTiles = 1;
+        this.heightInTiles = 1;
+        break;
+    }
 
     // Selection circle
     this.selectionCircle = scene.add.graphics();
@@ -70,5 +86,85 @@ export class Building extends Phaser.GameObjects.Container {
 
   public deselect() {
     this.selectionCircle.setVisible(false);
+  }
+
+  public takeDamage(amount: number) {
+    if (!this.isCompleted) {
+        // Double damage if under construction?
+        amount *= 2;
+    }
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.destroy();
+    }
+    
+    // Flash red
+    this.sprite.setTint(0xff0000);
+    this.scene.time.delayedCall(100, () => {
+        this.sprite.clearTint();
+    });
+  }
+
+  public isDead(): boolean {
+    return this.hp <= 0;
+  }
+
+  public getHp(): number {
+    return this.hp;
+  }
+
+  public getMaxHp(): number {
+    return this.maxHp;
+  }
+
+  private productionQueue: { type: 'unit' | 'tech'; id: string }[] = [];
+  private productionProgress: number = 0;
+  private productionDuration: number = 3000; // 3s per unit
+
+  public queueUnit(unitType: string) {
+    this.productionQueue.push({ type: 'unit', id: unitType });
+  }
+
+  public queueResearch(techId: string) {
+    this.productionQueue.push({ type: 'tech', id: techId });
+  }
+
+  public update(delta: number) {
+     if (this.productionQueue.length > 0) {
+       this.productionProgress += delta;
+       
+       // Different duration for tech?
+       // For now use same duration or get from TechData if possible.
+       // But Building doesn't know about TechData directly easily without importing.
+       // Let's assume standard time for now or pass it in.
+       // Actually, let's just use a fixed time or check type.
+       
+       const currentItem = this.productionQueue[0];
+       let duration = this.productionDuration;
+       
+       if (currentItem.type === 'tech') {
+           duration = 5000; // 5s for tech
+       }
+
+       if (this.productionProgress >= duration) {
+         const item = this.productionQueue.shift();
+         this.productionProgress = 0;
+         
+         if (item) {
+             if (item.type === 'unit') {
+                 this.scene.events.emit('unitCreated', { type: item.id, x: this.x, y: this.y });
+             } else if (item.type === 'tech') {
+                 // Complete research
+                 // We need to access TechSystem. 
+                 // Ideally GameScene listens to event or we call method.
+                 // Let's emit event.
+                 // Actually TechSystem handles logic.
+                 // Let's emit 'researchComplete'
+                 (this.scene as any).techSystem.completeResearch(item.id);
+             }
+         }
+       }
+     }
   }
 }
